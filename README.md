@@ -29,11 +29,17 @@ Paraent/YOLOv5$ python segment/train.py --data LogoRec.yaml --epochs 500 --weigh
 > 모자이크 없는 결과 출력
 
 ```shell
-Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms False
+Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms 0
 ```
 
 > 모자이크 있는 결과 출력
 
 ```shell
-Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms True
+Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms 1
+```
+
+> :tada: Demo! :tada:
+
+```shell
+Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms 2
 ```
