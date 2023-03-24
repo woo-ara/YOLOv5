@@ -82,7 +82,7 @@ def run(
     dnn=False,  # use OpenCV DNN for ONNX inference
     vid_stride=1,  # video frame-rate stride
     retina_masks=False,
-    bms=True,
+    bms=1,
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -174,15 +174,15 @@ def run(
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Mask plotting
-                if bms:
-                    annotator.BoonMoSa(
-                        masks,
-                        im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
-                        255 if retina_masks else im[i])
-                else:
+                if bms == 0:
                     annotator.masks(
                         masks,
                         colors=[colors(x, True) for x in det[:, 5]],
+                        im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
+                        255 if retina_masks else im[i])
+                elif bms == 1:
+                    annotator.BoonMoSa(
+                        masks,
                         im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
                         255 if retina_masks else im[i])
 
@@ -197,7 +197,7 @@ def run(
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                        if not bms:
+                        if bms == 0:
                             annotator.box_label(xyxy, label, color=colors(c, True))
                             # annotator.draw.polygon(segments[j], outline=colors(c, True), width=3)
                     if save_crop:
@@ -276,12 +276,8 @@ def parse_opt():
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
     parser.add_argument('--retina-masks', action='store_true', help='whether to plot masks in native resolution')
-    parser.add_argument('--bms', type=str, help='True: BoonMoSa Results, False: Detection & Segmentation Results')
+    parser.add_argument('--bms', type=int, help='0: Detection & Segmentation Results / 1: BoonMoSa Results / 2: Demo')
     opt = parser.parse_args()
-    if opt.bms == "False":
-        opt.bms = False
-    else:
-        opt.bms = True
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     print_args(vars(opt))
     return opt
