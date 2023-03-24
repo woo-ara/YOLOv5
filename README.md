@@ -41,5 +41,5 @@ Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 �
 > :tada: Demo! :tada:
 
 ```shell
-Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms 2
+Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source 0 --bms 2
 ```
