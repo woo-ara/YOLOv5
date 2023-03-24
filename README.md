@@ -1,9 +1,39 @@
-# [Make Branch & Upload Your Code!](https://github.com/Team-BoonMoSa/YOLOv5/issues/1)
+# [Data Setting for YOLOv5](https://github.com/Team-BoonMoSa/MakeData)
 
-> [Reference Code](https://github.com/ultralytics/yolov5)
+```shell
+Paraent/datasets/MakeData$ python saveData.py
+100%|████████████████████████████████████████████████████████████████████████| 2235/2235 [00:45<00:00, 49.47it/s]
+==============================
+No. Total Data:  2235
+==============================
+Training Data: No. Images 1861
+Training Data: No. GT 1861
+Validation Data: No. Images 187
+Validation Data: No. GT 187
+Test Data: No. Images 187
+Test Data: No. GT 187
+==============================
+No. Total Image Data:  2235
+No. Total GT Data:  2235
+==============================
+```
 
-+ [오효근](https://github.com/Team-BoonMoSa/YOLOv5/tree/Zerohertz)
-+ [김보겸](https://github.com/Team-BoonMoSa/YOLOv5/tree/seedspirit)
-+ [임서현](https://github.com/Team-BoonMoSa/YOLOv5/tree/seohl16)
-+ [우아라](https://github.com/Team-BoonMoSa/YOLOv5/tree/woo-ara)
-+ [송예진](https://github.com/Team-BoonMoSa/YOLOv5/tree/yejincode)
+# Train
+
+```shell
+Paraent/YOLOv5$ python segment/train.py --data LogoRec.yaml --epochs 500 --weights yolov5${모델 버전}-seg.pt --batch-size 32
+```
+
+# Test
+
+> 모자이크 없는 결과 출력
+
+```shell
+Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms False
+```
+
+> 모자이크 있는 결과 출력
+
+```shell
+Paraent/YOLOv5$ python segment/predict.py --weights runs/train-seg/${훈련된 가중치}/weights/best.pt --source ../datasets/LogoRec/images/test --bms True
+```
