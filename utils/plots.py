@@ -25,6 +25,8 @@ from utils.general import (CONFIG_DIR, FONT, LOGGER, check_font, check_requireme
 from utils.metrics import fitness
 from utils.segment.general import scale_image
 
+import torchvision.transforms as transforms
+
 # Settings
 RANK = int(os.getenv('RANK', -1))
 matplotlib.rc('font', **{'size': 11})
@@ -82,6 +84,7 @@ class Annotator:
         else:  # use cv2
             self.im = im
         self.lw = line_width or max(round(sum(im.shape) / 2 * 0.003), 2)  # line width
+        self.gaussian_blur = transforms.GaussianBlur(kernel_size=(21, 21), sigma=(5, 5))
 
     def box_label(self, box, label='', color=(128, 128, 128), txt_color=(255, 255, 255)):
         # Add one xyxy box to image with label
@@ -140,6 +143,32 @@ class Annotator:
         im_gpu = im_gpu.permute(1, 2, 0).contiguous()  # shape(h,w,3)
         im_gpu = im_gpu * inv_alph_masks[-1] + mcs
         im_mask = (im_gpu * 255).byte().cpu().numpy()
+        self.im[:] = im_mask if retina_masks else scale_image(im_gpu.shape, im_mask, self.im.shape)
+        if self.pil:
+            # convert im back to PIL and update draw
+            self.fromarray(self.im)
+
+    def BoonMoSa(self, masks, im_gpu, alpha=0.5, retina_masks=False):
+        """BoonMoSa!
+        Args:
+            masks (tensor): predicted masks on cuda, shape: [n, h, w]
+            im_gpu (tensor): img is in cuda, shape: [3, h, w], range: [0, 1]
+            alpha (float): mask transparency: 0.0 fully transparent, 1.0 opaque
+        """
+        if self.pil:
+            # convert to numpy first
+            self.im = np.asarray(self.im).copy()
+        if len(masks) == 0:
+            self.im[:] = im_gpu.permute(1, 2, 0).contiguous().cpu().numpy() * 255
+
+        mask = torch.sum(masks, 0)
+        im_tmp = self.gaussian_blur(im_gpu)
+        im_gpu = im_tmp * mask + im_gpu * (1 - mask)
+
+        im_gpu = im_gpu.flip(dims=[0])
+        im_gpu = im_gpu.permute(1, 2, 0).contiguous()
+        im_mask = (im_gpu * 255).byte().cpu().numpy()
+
         self.im[:] = im_mask if retina_masks else scale_image(im_gpu.shape, im_mask, self.im.shape)
         if self.pil:
             # convert im back to PIL and update draw
