@@ -36,6 +36,8 @@ from pathlib import Path
 
 import torch
 
+import numpy as np
+
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
@@ -82,7 +84,7 @@ def run(
     dnn=False,  # use OpenCV DNN for ONNX inference
     vid_stride=1,  # video frame-rate stride
     retina_masks=False,
-    bms=True,
+    bms=1,
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -143,6 +145,8 @@ def run(
             seen += 1
             if webcam:  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count
+                if bms == 2:
+                    im_ORG, im1, im2 = im0s[i].copy(), im0s[i].copy(), im0s[i].copy()
                 s += f'{i}: '
             else:
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
@@ -153,6 +157,9 @@ def run(
             s += '%gx%g ' % im.shape[2:]  # print string
             imc = im0.copy() if save_crop else im0  # for save_crop
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+            if bms == 2:
+                annotator1 = Annotator(im1, line_width=line_thickness, example=str(names))
+                annotator2 = Annotator(im2, line_width=line_thickness, example=str(names))
             if len(det):
                 if retina_masks:
                     # scale bbox first the crop masks
@@ -174,15 +181,25 @@ def run(
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Mask plotting
-                if bms:
+                if bms == 0:
+                    annotator.masks(
+                        masks,
+                        colors=[colors(x, True) for x in det[:, 5]],
+                        im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
+                        255 if retina_masks else im[i])
+                elif bms == 1:
                     annotator.BoonMoSa(
                         masks,
                         im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
                         255 if retina_masks else im[i])
-                else:
-                    annotator.masks(
+                elif bms == 2:
+                    annotator1.masks(
                         masks,
                         colors=[colors(x, True) for x in det[:, 5]],
+                        im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
+                        255 if retina_masks else im[i])
+                    annotator2.BoonMoSa(
+                        masks,
                         im_gpu=torch.as_tensor(im0, dtype=torch.float16).to(device).permute(2, 0, 1).flip(0).contiguous() /
                         255 if retina_masks else im[i])
 
@@ -197,7 +214,7 @@ def run(
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                        if not bms:
+                        if bms == 0 or bms == 2:
                             annotator.box_label(xyxy, label, color=colors(c, True))
                             # annotator.draw.polygon(segments[j], outline=colors(c, True), width=3)
                     if save_crop:
@@ -205,12 +222,33 @@ def run(
 
             # Stream results
             im0 = annotator.result()
+            if bms == 2:
+                # (1080, 1920, 3)
+                demo_sz = 300
+                im_ORG = im_ORG[0:1080, 420:1500]
+                im_ORG = cv2.resize(im_ORG, (demo_sz, demo_sz), interpolation=cv2.INTER_CUBIC)
+                im0 = im0[0:1080, 420:1500]
+                im0 = cv2.resize(im0, (demo_sz, demo_sz), interpolation=cv2.INTER_CUBIC)
+                im1 = annotator1.result()
+                im1 = im1[0:1080, 420:1500]
+                im1 = cv2.resize(im1, (demo_sz, demo_sz), interpolation=cv2.INTER_CUBIC)
+                im2 = annotator2.result()
+                im2 = im2[0:1080, 420:1500]
+                im2 = cv2.resize(im2, (demo_sz, demo_sz), interpolation=cv2.INTER_CUBIC)
+                imm = np.zeros((demo_sz, demo_sz * 4, 3), np.uint8)
             if view_img:
                 if platform.system() == 'Linux' and p not in windows:
                     windows.append(p)
                     cv2.namedWindow(str(p), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
-                    cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
-                cv2.imshow(str(p), im0)
+                    # cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
+                if bms == 2:
+                    imm[0:demo_sz,0:demo_sz,:] = im_ORG
+                    imm[0:demo_sz,demo_sz:demo_sz*2,:] = im0
+                    imm[0:demo_sz,demo_sz*2:demo_sz*3,:] = im1
+                    imm[0:demo_sz,demo_sz*3:demo_sz*4,:] = im2
+                    cv2.imshow(str(p), imm)
+                else:
+                    cv2.imshow(str(p), im0)
                 if cv2.waitKey(1) == ord('q'):  # 1 millisecond
                     exit()
 
@@ -276,12 +314,8 @@ def parse_opt():
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
     parser.add_argument('--retina-masks', action='store_true', help='whether to plot masks in native resolution')
-    parser.add_argument('--bms', type=str, help='True: BoonMoSa Results, False: Detection & Segmentation Results')
+    parser.add_argument('--bms', type=int, help='0: Detection & Segmentation Results / 1: BoonMoSa Results / 2: Demo')
     opt = parser.parse_args()
-    if opt.bms == "False":
-        opt.bms = False
-    else:
-        opt.bms = True
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     print_args(vars(opt))
     return opt
