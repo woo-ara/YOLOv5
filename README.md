@@ -59,3 +59,12 @@ python train.py --data coco128.yaml --epochs 300 --weights yolov5m6 --cfg yolov5
 
 </div>
 </details>
+
+----
+
+# Training for Logo Detection & Segmentation
+
+```shell
+python train.py --data FlickrLogos-v2.yaml --epochs 300 --weights yolov5n --cfg yolov5n.yaml --batch-size 32
+python segment/train.py --data LogoRec.yaml --epochs 300 --weights yolov5n-seg.pt --batch-size 32
+```
